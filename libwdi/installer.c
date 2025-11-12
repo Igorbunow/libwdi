@@ -48,9 +48,25 @@ static void cleanup_oem_infs_for_original(const char* original_name)
 	char search[MAX_PATH];
 	WIN32_FIND_DATAA fd;
 	HANDLE hFind;
+	int removed_count = 0;
+	const char* env;
 	
 	if ((original_name == NULL) || (original_name[0] == 0))
 		return;
+	
+	// Optional override: allow the caller to disable OEM INF cleanup.
+	// Default behaviour (when the variable is not set) is to keep
+	// cleanup enabled.
+	env = getenv("WDI_CLEANUP_OEM_INF");
+	if (env != NULL) {
+		if ((_stricmp(env, "0") == 0) ||
+			(_stricmp(env, "false") == 0) ||
+			(_stricmp(env, "off") == 0)) {
+			plog("OEM INF cleanup disabled by environment for OriginalInfName='%s'",
+				 original_name);
+			return;
+		}
+	}
 	
 	if (!GetWindowsDirectoryA(windir, sizeof(windir)))
 		return;
@@ -106,22 +122,27 @@ static void cleanup_oem_infs_for_original(const char* original_name)
 		ZeroMemory(&orig, sizeof(orig));
 		orig.cbSize = sizeof(orig);
 	
-		if (SetupQueryInfOriginalFileInformationA(inf_info, 0, NULL, &orig)) {
-			if (_stricmp(orig.OriginalInfName, original_name) == 0) {
-				plog("removing previous OEM INF '%s' (OriginalInfName='%s')",
-					 fd.cFileName, orig.OriginalInfName);
-				if (!SetupUninstallOEMInfA(fd.cFileName, SUOI_FORCEDELETE, NULL)) {
-					DWORD err = GetLastError();
-					plog("SetupUninstallOEMInfA('%s') failed: %u",
-						 fd.cFileName, (unsigned int)err);
-				}
+	if (SetupQueryInfOriginalFileInformationA(inf_info, 0, NULL, &orig)) {
+		if (_stricmp(orig.OriginalInfName, original_name) == 0) {
+			plog("removing previous OEM INF '%s' (OriginalInfName='%s')",
+				 fd.cFileName, orig.OriginalInfName);
+			if (!SetupUninstallOEMInfA(fd.cFileName, SUOI_FORCEDELETE, NULL)) {
+				DWORD err = GetLastError();
+				plog("SetupUninstallOEMInfA('%s') failed: %u",
+					 fd.cFileName, (unsigned int)err);
+			} else {
+				removed_count++;
 			}
 		}
+	}
 	
 		free(inf_info);
-	} while (FindNextFileA(hFind, &fd));
-	
+    } while (FindNextFileA(hFind, &fd));
+
 	FindClose(hFind);
+	
+	plog("OEM INF cleanup summary for OriginalInfName='%s': removed %d file(s)",
+		 original_name, removed_count);
 }
 
 // DDK complains about checking a const string against NULL...

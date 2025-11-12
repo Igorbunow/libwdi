@@ -115,6 +115,7 @@ BOOL has_filter_driver = FALSE;
 BOOL use_arrow_icons = FALSE;
 BOOL exit_on_success = FALSE;
 BOOL no_syslog_wait_ini = FALSE;
+BOOL cleanup_oem_inf_ini = TRUE;
 enum wcid_state has_wcid = WCID_NONE;
 int wcid_type = WDI_USER;
 int post_install_verify_timeout_ini = 2000;
@@ -432,6 +433,11 @@ int install_driver(void)
 			id_options.no_syslog_wait = no_syslog_wait_ini;
 			// short settle-poll (optional)
 			id_options.post_install_verify_timeout = post_install_verify_timeout_ini;
+			// Control OEM INF cleanup policy in the installer via environment
+			SetEnvironmentVariableA(
+				"WDI_CLEANUP_OEM_INF",
+				cleanup_oem_inf_ini ? "1" : "0"
+			);
 			r = wdi_install_driver(dev, szFolderPath, inf_name, &id_options);
 			// Switch to non driverless-only mode and set hw ID to show the newly installed device
 			current_device_hardware_id = (dev != NULL)?safe_strdup(dev->hardware_id):NULL;
@@ -1380,6 +1386,7 @@ BOOL parse_ini(void) {
 	profile_get_boolean(profile, "device", "trim_whitespaces", NULL, TRUE, &cl_options.trim_whitespaces);
 	profile_get_boolean(profile, "security", "disable_cert_install_warning", NULL, FALSE, &ic_options.disable_warning);
 	profile_get_boolean(profile, "behavior", "no_syslog_wait", NULL, FALSE, &no_syslog_wait_ini);
+	profile_get_boolean(profile, "behavior", "cleanup_oem_inf", NULL, TRUE, &cleanup_oem_inf_ini);
 	
 	
 	profile_get_integer(profile, "behavior", "post_install_verify_timeout_ms", NULL, 2000, &post_install_verify_timeout_ini);
