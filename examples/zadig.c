@@ -85,7 +85,7 @@ char szFolderPath[MAX_PATH];
 char user_inf_name[MAX_PATH] = "ftdibus.inf";
 char user_display_name[128]  = "FTDI CDM ({inf})";
 char update_base_url[256] = APPLICATION_URL "/";
-BOOL updates_disabled = FALSE;
+BOOL updates_disabled = TRUE;
 static char custom_display_buf[128] = "FTDI CDM (ftdibus.inf)";
 const char* driver_display_name[WDI_NB_DRIVERS] = { "WinUSB", "libusb-win32", "libusbK", "USB Serial (CDC)", custom_display_buf};
 const char* driver_name[WDI_NB_DRIVERS] = { "WinUSB", "libusb0", "libusbK", "usbser", "custom" };
@@ -1374,10 +1374,10 @@ BOOL parse_ini(void) {
 	// Set the various boolean options
 	profile_get_boolean(profile, "general", "advanced_mode", NULL, FALSE, &advanced_mode);
 	profile_get_boolean(profile, "general", "exit_on_success", NULL, FALSE, &exit_on_success);
-	profile_get_boolean(profile, "device", "list_all", NULL, FALSE, &cl_options.list_all);
+	profile_get_boolean(profile, "device", "list_all", NULL, TRUE, &cl_options.list_all);
 	profile_get_boolean(profile, "device", "include_hubs", NULL, FALSE, &cl_options.list_hubs);
 	profile_get_boolean(profile, "driver", "extract_only", NULL, FALSE, &extract_only);
-	profile_get_boolean(profile, "device", "trim_whitespaces", NULL, FALSE, &cl_options.trim_whitespaces);
+	profile_get_boolean(profile, "device", "trim_whitespaces", NULL, TRUE, &cl_options.trim_whitespaces);
 	profile_get_boolean(profile, "security", "disable_cert_install_warning", NULL, FALSE, &ic_options.disable_warning);
 	profile_get_boolean(profile, "behavior", "no_syslog_wait", NULL, FALSE, &no_syslog_wait_ini);
 	
@@ -1407,7 +1407,7 @@ BOOL parse_ini(void) {
 	
 	
 	// Update settings
-	profile_get_boolean(profile, "updates", "disable", NULL, FALSE, &updates_disabled);
+	profile_get_boolean(profile, "updates", "disable", NULL, TRUE, &updates_disabled);
 	tmp = NULL;
 	profile_get_string(profile, "updates", "base_url", NULL, NULL, &tmp);
 	if (tmp != NULL) {
