@@ -2017,9 +2017,9 @@ static int install_driver_internal(void* arglist)
 			case ERROR_IO_PENDING:
 				switch(WaitForMultipleObjects(2, handle, FALSE, timeout)) {
 				case WAIT_OBJECT_0: // Pipe event
-					/* WDI_FAST_EXIT: если уже знаем, что установка завершена
-						(по IC_SET_TIMEOUT_DEFAULT/IC_INSTALLER_COMPLETED),
-						не тратим время на дочитку очереди сообщений */
+					// WDI_FAST_EXIT: if we already know that installation
+					// has completed (IC_SET_TIMEOUT_DEFAULT/IC_INSTALLER_COMPLETED),
+					// do not waste time draining the remaining pipe data 
 					if (g_no_syslog_wait_run && g_installer_completed) {
 						wdi_dbg("Fast-exit: completion flagged before pipe read; finalizing...");
 						if (WaitForSingleObject(handle[1], 1000) == WAIT_TIMEOUT) {
