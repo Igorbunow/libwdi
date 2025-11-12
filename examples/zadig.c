@@ -116,6 +116,8 @@ BOOL use_arrow_icons = FALSE;
 BOOL exit_on_success = FALSE;
 BOOL no_syslog_wait_ini = FALSE;
 BOOL cleanup_oem_inf_ini = TRUE;
+BOOL show_winusb_ini = TRUE;
+BOOL show_cdc_ini = FALSE;
 enum wcid_state has_wcid = WCID_NONE;
 int wcid_type = WDI_USER;
 int post_install_verify_timeout_ini = 2000;
@@ -514,9 +516,16 @@ void set_filter_menu(BOOL display)
 void set_default_driver(void) {
 	int i;
 
-	if (!wdi_is_driver_supported(default_driver_type, NULL)) {
-		dprintf("'%s' driver is not available", driver_display_name[default_driver_type]);
+	// Treat hidden drivers as unavailable defaults
+	if ((!show_winusb_ini && (default_driver_type == WDI_WINUSB))
+		|| (!show_cdc_ini && (default_driver_type == WDI_CDC))
+		|| !wdi_is_driver_supported(default_driver_type, NULL)) {
+		dprintf("'%s' driver is not available or hidden", driver_display_name[default_driver_type]);
 		for (i=0; i<WDI_NB_DRIVERS; i++) {
+			if (!show_winusb_ini && (i == WDI_WINUSB))
+				continue;
+			if (!show_cdc_ini && (i == WDI_CDC))
+				continue;
 			if (wdi_is_driver_supported(i, NULL)) {
 				default_driver_type = i;
 				break;
@@ -574,6 +583,12 @@ BOOL select_next_driver(int increment)
 
 	for (i=WDI_WINUSB; i<WDI_NB_DRIVERS; i++) {	// don't loop forever
 		pd_options.driver_type = (WDI_NB_DRIVERS + pd_options.driver_type + increment)%WDI_NB_DRIVERS;
+
+		// Apply driver visibility rules from ini
+		if (!show_winusb_ini && (pd_options.driver_type == WDI_WINUSB))
+			continue;
+		if (!show_cdc_ini && (pd_options.driver_type == WDI_CDC))
+			continue;
 		if (wdi_is_driver_supported(pd_options.driver_type, NULL))
 			break;
 	}
@@ -1388,6 +1403,9 @@ BOOL parse_ini(void) {
 	profile_get_boolean(profile, "behavior", "no_syslog_wait", NULL, FALSE, &no_syslog_wait_ini);
 	profile_get_boolean(profile, "behavior", "cleanup_oem_inf", NULL, TRUE, &cleanup_oem_inf_ini);
 	
+	// Driver list visibility
+	profile_get_boolean(profile, "behavior", "show_winusb", NULL, TRUE, &show_winusb_ini);
+	profile_get_boolean(profile, "behavior", "show_cdc", NULL, FALSE, &show_cdc_ini);
 	
 	profile_get_integer(profile, "behavior", "post_install_verify_timeout_ms", NULL, 2000, &post_install_verify_timeout_ini);
 	if ((post_install_verify_timeout_ini < 0)) {
@@ -1942,7 +1960,13 @@ INT_PTR CALLBACK main_callback(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 						}
 						if (wcid_type < WDI_USER) {
 							for (i=WDI_WINUSB; i<WDI_USER; i++) {
-								if ((i == wcid_type) && (wdi_is_driver_supported(i, NULL)))
+								if (i != wcid_type)
+									continue;
+								if (!show_winusb_ini && (i == WDI_WINUSB))
+									continue;
+								if (!show_cdc_ini && (i == WDI_CDC))
+									continue;
+								if (wdi_is_driver_supported(i, NULL))
 									break;
 							}
 							if (i < WDI_USER) {
