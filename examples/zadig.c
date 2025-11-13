@@ -155,221 +155,221 @@ EXT_DECL(cfg_ext, "sample.cfg", __VA_GROUP__("*.cfg"), __VA_GROUP__("Zadig devic
 /* simple substitution of {inf} in user_display_name -> custom_display_buf */
 static void update_custom_display_name(void)
 {
-    const char* p = strstr(user_display_name, "{inf}");
-    if (p == NULL) {
-        safe_strcpy(custom_display_buf, sizeof(custom_display_buf), user_display_name);
-    } else {
-        size_t pre = (size_t)(p - user_display_name);
-        if (pre >= sizeof(custom_display_buf)) pre = sizeof(custom_display_buf)-1;
-        memcpy(custom_display_buf, user_display_name, pre);
-        custom_display_buf[pre] = '\0';
-        safe_strcat(custom_display_buf, sizeof(custom_display_buf), user_inf_name);
-        safe_strcat(custom_display_buf, sizeof(custom_display_buf), p + 5 /* strlen("{inf}") */);
-    }
-    driver_display_name[WDI_NB_DRIVERS-1] = custom_display_buf;
+	const char* p = strstr(user_display_name, "{inf}");
+	if (p == NULL) {
+		safe_strcpy(custom_display_buf, sizeof(custom_display_buf), user_display_name);
+	} else {
+		size_t pre = (size_t)(p - user_display_name);
+		if (pre >= sizeof(custom_display_buf)) pre = sizeof(custom_display_buf)-1;
+		memcpy(custom_display_buf, user_display_name, pre);
+		custom_display_buf[pre] = '\0';
+		safe_strcat(custom_display_buf, sizeof(custom_display_buf), user_inf_name);
+		safe_strcat(custom_display_buf, sizeof(custom_display_buf), p + 5 /* strlen("{inf}") */);
+	}
+	driver_display_name[WDI_NB_DRIVERS-1] = custom_display_buf;
 }
 
 static void reset_device_filter(void)
 {
-    int i;
-    device_filter_enabled = FALSE;
-    filter_vids_count = 0;
-    filter_pids_count = 0;
-    filter_vidpids_count = 0;
-    filter_mis_count = 0;
-    filter_driver_present = FALSE;
-    filter_driver_list[0] = '\0';
-
-    for (i = 0; i < MAX_DEVICE_FILTER_VALUES; i++) {
-        filter_vids[i] = 0;
-        filter_pids[i] = 0;
-        filter_vidpids[i].vid = 0;
-        filter_vidpids[i].pid = 0;
-        filter_mis[i] = 0;
-    }
+	int i;
+	device_filter_enabled = FALSE;
+	filter_vids_count = 0;
+	filter_pids_count = 0;
+	filter_vidpids_count = 0;
+	filter_mis_count = 0;
+	filter_driver_present = FALSE;
+	filter_driver_list[0] = '\0';
+	
+	for (i = 0; i < MAX_DEVICE_FILTER_VALUES; i++) {
+		filter_vids[i] = 0;
+		filter_pids[i] = 0;
+		filter_vidpids[i].vid = 0;
+		filter_vidpids[i].pid = 0;
+		filter_mis[i] = 0;
+	}
 }
 
 static int parse_hex_ushort_token(const char* token, unsigned short* value)
 {
-    char* endptr;
-    unsigned long v;
-
-    if ((token == NULL) || (token[0] == '\0'))
-        return 0;
-
-    while (isspace((unsigned char)*token)) {
-        token++;
-    }
-    if ((token[0] == '0') && ((token[1] == 'x') || (token[1] == 'X'))) {
-        token += 2;
-    }
-
-    v = strtoul(token, &endptr, 16);
-    while ((endptr != NULL) && (*endptr != '\0') && isspace((unsigned char)*endptr)) {
-        endptr++;
-    }
-    if ((endptr == NULL) || (*endptr != '\0')) {
-        return 0;
-    }
-    if (v > 0xFFFF) {
-        return 0;
-    }
-
-    *value = (unsigned short)v;
-    return 1;
+	char* endptr;
+	unsigned long v;
+	
+	if ((token == NULL) || (token[0] == '\0'))
+		return 0;
+	
+	while (isspace((unsigned char)*token)) {
+		token++;
+	}
+	if ((token[0] == '0') && ((token[1] == 'x') || (token[1] == 'X'))) {
+		token += 2;
+	}
+	
+	v = strtoul(token, &endptr, 16);
+	while ((endptr != NULL) && (*endptr != '\0') && isspace((unsigned char)*endptr)) {
+		endptr++;
+	}
+	if ((endptr == NULL) || (*endptr != '\0')) {
+		return 0;
+	}
+	if (v > 0xFFFF) {
+		return 0;
+	}
+	
+	*value = (unsigned short)v;
+	return 1;
 }
 
 static void parse_filter_vid_list(char* s)
 {
-    char* token;
-
-    if ((s == NULL) || (s[0] == '\0'))
-        return;
-
-    token = strtok(s, ",");
-    while ((token != NULL) && (filter_vids_count < MAX_DEVICE_FILTER_VALUES)) {
-        unsigned short vid;
-        if (parse_hex_ushort_token(token, &vid)) {
-            filter_vids[filter_vids_count++] = vid;
-        } else {
-            dprintf("invalid VID value '%s' in device filter", token);
-        }
-        token = strtok(NULL, ",");
-    }
+	char* token;
+	
+	if ((s == NULL) || (s[0] == '\0'))
+		return;
+	
+	token = strtok(s, ",");
+	while ((token != NULL) && (filter_vids_count < MAX_DEVICE_FILTER_VALUES)) {
+		unsigned short vid;
+		if (parse_hex_ushort_token(token, &vid)) {
+			filter_vids[filter_vids_count++] = vid;
+		} else {
+			dprintf("invalid VID value '%s' in device filter", token);
+		}
+		token = strtok(NULL, ",");
+	}
 }
 
 static void parse_filter_pid_list(char* s)
 {
-    char* token;
-
-    if ((s == NULL) || (s[0] == '\0'))
-        return;
-
-    token = strtok(s, ",");
-    while ((token != NULL) && (filter_pids_count < MAX_DEVICE_FILTER_VALUES)) {
-        unsigned short pid;
-        if (parse_hex_ushort_token(token, &pid)) {
-            filter_pids[filter_pids_count++] = pid;
-        } else {
-            dprintf("invalid PID value '%s' in device filter", token);
-        }
-        token = strtok(NULL, ",");
-    }
+	char* token;
+	
+	if ((s == NULL) || (s[0] == '\0'))
+		return;
+	
+	token = strtok(s, ",");
+	while ((token != NULL) && (filter_pids_count < MAX_DEVICE_FILTER_VALUES)) {
+		unsigned short pid;
+		if (parse_hex_ushort_token(token, &pid)) {
+			filter_pids[filter_pids_count++] = pid;
+		} else {
+			dprintf("invalid PID value '%s' in device filter", token);
+		}
+		token = strtok(NULL, ",");
+	}
 }
 
 static void parse_filter_mi_list(char* s)
 {
-    char* token;
-
-    if ((s == NULL) || (s[0] == '\0'))
-        return;
-
-    token = strtok(s, ",");
-    while ((token != NULL) && (filter_mis_count < MAX_DEVICE_FILTER_VALUES)) {
-        char* endptr;
-        long v;
-
-        while (isspace((unsigned char)*token)) {
-            token++;
-        }
-
-        // base 0 allows both decimal (0,1) and hex (0x0,0x1)
-        v = strtol(token, &endptr, 0);
-
-        while ((endptr != NULL) && (*endptr != '\0') && isspace((unsigned char)*endptr)) {
-            endptr++;
-        }
-
-        if ((endptr != NULL) && (*endptr == '\0') && (v >= 0) && (v <= 255)) {
-            filter_mis[filter_mis_count++] = (unsigned char)v;
-        } else {
-            dprintf("invalid MI value '%s' in device filter", token);
-        }
-
-        token = strtok(NULL, ",");
-    }
+	char* token;
+	
+	if ((s == NULL) || (s[0] == '\0'))
+		return;
+	
+	token = strtok(s, ",");
+	while ((token != NULL) && (filter_mis_count < MAX_DEVICE_FILTER_VALUES)) {
+		char* endptr;
+		long v;
+	
+		while (isspace((unsigned char)*token)) {
+			token++;
+		}
+	
+		// base 0 allows both decimal (0,1) and hex (0x0,0x1)
+		v = strtol(token, &endptr, 0);
+	
+		while ((endptr != NULL) && (*endptr != '\0') && isspace((unsigned char)*endptr)) {
+			endptr++;
+		}
+	
+		if ((endptr != NULL) && (*endptr == '\0') && (v >= 0) && (v <= 255)) {
+			filter_mis[filter_mis_count++] = (unsigned char)v;
+		} else {
+			dprintf("invalid MI value '%s' in device filter", token);
+		}
+	
+		token = strtok(NULL, ",");
+	}
 }
 
 static void parse_filter_vidpid_list(char* s)
 {
-    char* token;
-
-    if ((s == NULL) || (s[0] == '\0'))
-        return;
-
-    token = strtok(s, ",");
-    while ((token != NULL) && (filter_vidpids_count < MAX_DEVICE_FILTER_VALUES)) {
-        char* sep = strchr(token, ':');
-        unsigned short vid, pid;
-
-        if (sep == NULL) {
-            dprintf("invalid VID:PID entry '%s' (missing ':') in device filter", token);
-        } else {
-            *sep = '\0';
-            if (parse_hex_ushort_token(token, &vid) && parse_hex_ushort_token(sep + 1, &pid)) {
-                filter_vidpids[filter_vidpids_count].vid = vid;
-                filter_vidpids[filter_vidpids_count].pid = pid;
-                filter_vidpids_count++;
-            } else {
-                dprintf("invalid VID:PID entry '%s' in device filter", token);
-            }
-        }
-
-        token = strtok(NULL, ",");
-    }
+	char* token;
+	
+	if ((s == NULL) || (s[0] == '\0'))
+		return;
+	
+	token = strtok(s, ",");
+	while ((token != NULL) && (filter_vidpids_count < MAX_DEVICE_FILTER_VALUES)) {
+		char* sep = strchr(token, ':');
+		unsigned short vid, pid;
+	
+		if (sep == NULL) {
+			dprintf("invalid VID:PID entry '%s' (missing ':') in device filter", token);
+		} else {
+			*sep = '\0';
+			if (parse_hex_ushort_token(token, &vid) && parse_hex_ushort_token(sep + 1, &pid)) {
+				filter_vidpids[filter_vidpids_count].vid = vid;
+				filter_vidpids[filter_vidpids_count].pid = pid;
+				filter_vidpids_count++;
+			} else {
+				dprintf("invalid VID:PID entry '%s' in device filter", token);
+			}
+		}
+	
+		token = strtok(NULL, ",");
+	}
 }
 
 static int count_filter_tokens(const char* s)
 {
-    int count = 0;
-    char buf[256];
-    char* token;
-
-    if ((s == NULL) || (s[0] == '\0'))
-        return 0;
-
-    safe_strcpy(buf, sizeof(buf), s);
-    token = strtok(buf, ",");
-    while (token != NULL) {
-        while (isspace((unsigned char)*token)) {
-            token++;
-        }
-        if (*token != '\0') {
-            count++;
-        }
-        token = strtok(NULL, ",");
-    }
-    return count;
+	int count = 0;
+	char buf[256];
+	char* token;
+	
+	if ((s == NULL) || (s[0] == '\0'))
+		return 0;
+	
+	safe_strcpy(buf, sizeof(buf), s);
+	token = strtok(buf, ",");
+	while (token != NULL) {
+		while (isspace((unsigned char)*token)) {
+			token++;
+		}
+		if (*token != '\0') {
+			count++;
+		}
+		token = strtok(NULL, ",");
+	}
+	return count;
 }
 
 static BOOL device_driver_matches(const struct wdi_device_info* dev)
 {
-    char buf[256];
-    char* token;
-
-    if (!filter_driver_present) {
-        return TRUE;
-    }
-
-    if ((dev->driver == NULL) || (dev->driver[0] == '\0')) {
-        return FALSE;
-    }
-
-    safe_strcpy(buf, sizeof(buf), filter_driver_list);
-    token = strtok(buf, ",");
-    while (token != NULL) {
-        while (isspace((unsigned char)*token)) {
-            token++;
-        }
-        if (*token != '\0') {
-            if (_stricmp(token, dev->driver) == 0) {
-                return TRUE;
-            }
-        }
-        token = strtok(NULL, ",");
-    }
-
-    return FALSE;
+	char buf[256];
+	char* token;
+	
+	if (!filter_driver_present) {
+		return TRUE;
+	}
+	
+	if ((dev->driver == NULL) || (dev->driver[0] == '\0')) {
+		return FALSE;
+	}
+	
+	safe_strcpy(buf, sizeof(buf), filter_driver_list);
+	token = strtok(buf, ",");
+	while (token != NULL) {
+		while (isspace((unsigned char)*token)) {
+			token++;
+		}
+		if (*token != '\0') {
+			if (_stricmp(token, dev->driver) == 0) {
+				return TRUE;
+			}
+		}
+		token = strtok(NULL, ",");
+	}
+	
+	return FALSE;
 }
 
 // Helper: report whether a given driver type should be considered available
