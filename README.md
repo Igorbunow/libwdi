@@ -1,5 +1,11 @@
 # libwdi-ext — Extended libwdi fork for professional driver deployment
 
+![VS2022](https://img.shields.io/badge/VS2022-passing-brightgreen.svg)
+![MinGW](https://img.shields.io/badge/MinGW-passing-brightgreen.svg)
+![Coverity](https://img.shields.io/badge/Coverity-passing-brightgreen.svg)
+![Downloads](https://img.shields.io/github/downloads/Igorbunow/libwdi-ext/total.svg?color=brightgreen)
+![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
 **libwdi-ext** is a feature-enhanced fork of  
 [pbatard/libwdi](https://github.com/pbatard/libwdi)  
 designed for embedded systems, OEM tools, automated provisioning, and advanced driver workflow scenarios.
@@ -7,13 +13,6 @@ designed for embedded systems, OEM tools, automated provisioning, and advanced d
 The fork remains API-compatible with upstream while extending behavior where Windows driver installation is traditionally problematic.
 
 ---
-
-![VS2022](https://img.shields.io/badge/VS2022-passing-brightgreen.svg)
-![MinGW](https://img.shields.io/badge/MinGW-passing-brightgreen.svg)
-![Coverity](https://img.shields.io/badge/Coverity-passing-brightgreen.svg)
-![Downloads](https://img.shields.io/github/downloads/Igorbunow/libwdi-ext/total.svg?color=brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
-
 
 ## ⭐ Highlights
 
