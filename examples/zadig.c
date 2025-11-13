@@ -85,6 +85,8 @@ char app_dir[MAX_PATH], driver_text[64];
 char szFolderPath[MAX_PATH];
 char user_inf_name[MAX_PATH] = "ftdibus.inf";
 char user_display_name[128]  = "FTDI CDM ({inf})";
+char external_inf_path[MAX_PATH] = "";
+BOOL external_inf_enabled = FALSE;
 char update_base_url[256] = APPLICATION_URL "/";
 BOOL updates_disabled = TRUE;
 static char custom_display_buf[128] = "FTDI CDM (ftdibus.inf)";
@@ -115,7 +117,7 @@ BOOL unknown_vid = FALSE;
 BOOL has_filter_driver = FALSE;
 BOOL use_arrow_icons = FALSE;
 BOOL exit_on_success = FALSE;
-BOOL no_syslog_wait_ini = FALSE;
+BOOL no_syslog_wait_ini = TRUE;
 BOOL cleanup_oem_inf_ini = TRUE;
 BOOL show_winusb_ini  = TRUE;
 BOOL show_libusb0_ini = FALSE;
@@ -370,95 +372,111 @@ static BOOL device_driver_matches(const struct wdi_device_info* dev)
     return FALSE;
 }
 
+// Helper: report whether a given driver type should be considered available
+// in the GUI, taking into account external INF configuration for WDI_USER.
+static BOOL is_driver_supported_gui(enum wdi_driver_type type, VS_FIXEDFILEINFO* file_info)
+{
+	if ((type == WDI_USER) && external_inf_enabled) {
+		// In external INF mode, allow the USER driver entry even if libwdi
+		// was not built with a user driver directory. No version info is
+		// available in this case.
+		if (file_info != NULL) {
+			memset(file_info, 0, sizeof(*file_info));
+		}
+		return TRUE;
+	}
+	return wdi_is_driver_supported(type, file_info);
+}
+
 static BOOL device_matches_filter(const struct wdi_device_info* dev)
 {
-    int i;
-
-    if (!device_filter_enabled || (dev == NULL)) {
-        return TRUE;
-    }
-
-    // If specific VID:PID pairs are defined, they take precedence.
-    // Optional MI filtering is applied on top of the VID:PID match.
-    if (filter_vidpids_count > 0) {
-        BOOL pair_match = FALSE;
-
-        for (i = 0; i < filter_vidpids_count; i++) {
-            if ((dev->vid == filter_vidpids[i].vid) &&
-                (dev->pid == filter_vidpids[i].pid)) {
-                pair_match = TRUE;
-                break;
-            }
-        }
-
-        if (!pair_match) {
-            return FALSE;
-        }
-
-        if (filter_mis_count > 0) {
-            for (i = 0; i < filter_mis_count; i++) {
-                if (dev->mi == filter_mis[i]) {
-                    // VID:PID and MI matched, now apply optional driver filter
-                    if (!device_driver_matches(dev)) {
-                        return FALSE;
-                    }
-                    return TRUE;
-                }
-            }
-            return FALSE;
-        }
-
-        // VID:PID matched, no MI constraint -> apply optional driver filter
-        if (!device_driver_matches(dev)) {
-            return FALSE;
-        }
-        return TRUE;
-    }
-
-    // Otherwise apply VID, PID and MI lists independently (logical AND)
-    if (filter_vids_count > 0) {
-        for (i = 0; i < filter_vids_count; i++) {
-            if (dev->vid == filter_vids[i]) {
-                break;
-            }
-        }
-        if (i == filter_vids_count) {
-            return FALSE;
-        }
-    }
-
-    if (filter_pids_count > 0) {
-        for (i = 0; i < filter_pids_count; i++) {
-            if (dev->pid == filter_pids[i]) {
-                break;
-            }
-        }
-        if (i == filter_pids_count) {
-            return FALSE;
-        }
-    }
-
-    if (filter_mis_count > 0) {
-        for (i = 0; i < filter_mis_count; i++) {
-            if (dev->mi == filter_mis[i]) {
-                // VID/PID/MI matched (depending on which filters are active)
-                // now apply optional driver filter
-                if (!device_driver_matches(dev)) {
-                    return FALSE;
-                }
-                return TRUE;
-            }
-        }
-        return FALSE;
-    }
-
-    // No MI constraint, but VID/PID conditions are satisfied (or absent),
-    // apply optional driver filter.
-    if (!device_driver_matches(dev)) {
-        return FALSE;
-    }
-
-    return TRUE;
+	int i;
+	
+	if (!device_filter_enabled || (dev == NULL)) {
+		return TRUE;
+	}
+	
+	// If specific VID:PID pairs are defined, they take precedence.
+	// Optional MI filtering is applied on top of the VID:PID match.
+	if (filter_vidpids_count > 0) {
+		BOOL pair_match = FALSE;
+	
+		for (i = 0; i < filter_vidpids_count; i++) {
+			if ((dev->vid == filter_vidpids[i].vid) &&
+				(dev->pid == filter_vidpids[i].pid)) {
+				pair_match = TRUE;
+				break;
+			}
+		}
+	
+		if (!pair_match) {
+			return FALSE;
+		}
+	
+		if (filter_mis_count > 0) {
+			for (i = 0; i < filter_mis_count; i++) {
+				if (dev->mi == filter_mis[i]) {
+					// VID:PID and MI matched, now apply optional driver filter
+					if (!device_driver_matches(dev)) {
+						return FALSE;
+					}
+					return TRUE;
+				}
+			}
+			return FALSE;
+		}
+	
+		// VID:PID matched, no MI constraint -> apply optional driver filter
+		if (!device_driver_matches(dev)) {
+			return FALSE;
+		}
+		return TRUE;
+	}
+	
+	// Otherwise apply VID, PID and MI lists independently (logical AND)
+	if (filter_vids_count > 0) {
+		for (i = 0; i < filter_vids_count; i++) {
+			if (dev->vid == filter_vids[i]) {
+				break;
+			}
+		}
+		if (i == filter_vids_count) {
+			return FALSE;
+		}
+	}
+	
+	if (filter_pids_count > 0) {
+		for (i = 0; i < filter_pids_count; i++) {
+			if (dev->pid == filter_pids[i]) {
+				break;
+			}
+		}
+		if (i == filter_pids_count) {
+			return FALSE;
+		}
+	}
+	
+	if (filter_mis_count > 0) {
+		for (i = 0; i < filter_mis_count; i++) {
+			if (dev->mi == filter_mis[i]) {
+				// VID/PID/MI matched (depending on which filters are active)
+				// now apply optional driver filter
+				if (!device_driver_matches(dev)) {
+					return FALSE;
+				}
+				return TRUE;
+			}
+		}
+		return FALSE;
+	}
+	
+	// No MI constraint, but VID/PID conditions are satisfied (or absent),
+	// apply optional driver filter.
+	if (!device_driver_matches(dev)) {
+		return FALSE;
+	}
+	
+	return TRUE;
 }
 
 /*
@@ -721,10 +739,36 @@ int install_driver(void)
 	// If the custom driver (WDI_USER) is selected, use the specified INF file,
 	// which is located in the built-in USER_DIR (see --with-userdir / USER_DIR).
 	// This allows installing a pre-built FTDI package (ftdibus.inf + cat/sys/dll).
+	// For the custom driver (WDI_USER), either use a built-in INF from USER_DIR
+    // or an external INF specified in the ini file.
 	if (pd_options.driver_type == WDI_USER) {
+		char full_path[MAX_PATH];
+	
 		safe_free(inf_name);
-		inf_name = safe_strdup(user_inf_name);
-		dprintf("Using USER driver INF from ini: %s", user_inf_name);
+	
+		if (external_inf_enabled && (external_inf_path[0] != '\0')) {
+			size_t len;
+	
+			// Build "<external_inf_path>\user_inf_name"
+			safe_strcpy(full_path, sizeof(full_path), external_inf_path);
+			len = safe_strlen(full_path);
+			if ((len > 0) && (full_path[len-1] != '\\') && (full_path[len-1] != '/')) {
+				safe_strcat(full_path, sizeof(full_path), "\\");
+			}
+			safe_strcat(full_path, sizeof(full_path), user_inf_name);
+	
+			inf_name = safe_strdup(full_path);
+			pd_options.external_inf = TRUE;
+	
+			dprintf("Using EXTERNAL USER driver INF from ini: %s", inf_name);
+		} else {
+			inf_name = safe_strdup(user_inf_name);
+			pd_options.external_inf = FALSE;
+	
+			dprintf("Using USER driver INF from ini (USER_DIR): %s", user_inf_name);
+		}
+	} else {
+		pd_options.external_inf = FALSE;
 	}
 
 	// Perform extraction/installation
@@ -739,18 +783,43 @@ int install_driver(void)
 			r = WDI_ERROR_USER_CANCEL; goto out;
 		}
 	}
-	r = wdi_prepare_driver(dev, szFolderPath, inf_name, &pd_options);
-	if (r == WDI_SUCCESS) {
-		dsprintf("Successfully extracted driver files.");
-		// Perform the install if not extracting the files only
-		// Proceed with the installation unless the 'extract only' mode is enabled.
+	// If an external INF has been configured for the USER driver, install it
+	// directly from the user-specified path without running wdi_prepare_driver().
+	if ((pd_options.driver_type == WDI_USER) &&
+		external_inf_enabled && (external_inf_path[0] != '\0')) {
 		if (!extract_only) {
+		
+			// -----------------------------------------------------------
+			// ADD: Check that external INF file exists before installation
+			// -----------------------------------------------------------
+			char external_full_inf[MAX_PATH];
+			_snprintf(external_full_inf, sizeof(external_full_inf),
+					  "%s\\%s", external_inf_path, user_inf_name);
+		
+			DWORD inf_attr = GetFileAttributesA(external_full_inf);
+			if (inf_attr == INVALID_FILE_ATTRIBUTES ||
+				(inf_attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		
+				dprintf("External INF not found: '%s'", external_full_inf);
+				MessageBoxA(hMainDialog,
+					"The specified external INF file was not found.\n"
+					"Check the 'external_inf' section of the INI file.\n\n"
+					"Installation aborted.",
+					"External INF error",
+					MB_OK | MB_ICONERROR);
+		
+				r = WDI_ERROR_NOT_FOUND;
+				goto out;
+			}
+			// -----------------------------------------------------------
+		
 			if ( (get_driver_type(dev) == DT_SYSTEM)
 			  && (MessageBoxA(hMainDialog, "You are about to modify a system driver.\n"
 					"Are you sure this is what you want?", "Warning - System Driver",
 					MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) == IDNO) ) {
 				r = WDI_ERROR_USER_CANCEL; goto out;
 			}
+		
 			dsprintf("Installing driver. Please wait...");
 			id_options.hWnd = hMainDialog;
 			// fast and predictable exit
@@ -762,7 +831,11 @@ int install_driver(void)
 				"WDI_CLEANUP_OEM_INF",
 				cleanup_oem_inf_ini ? "1" : "0"
 			);
-			r = wdi_install_driver(dev, szFolderPath, inf_name, &id_options);
+		
+			dprintf("Installing external USER driver: path='%s', inf='%s'",
+				external_inf_path, user_inf_name);
+		
+			r = wdi_install_driver(dev, external_inf_path, user_inf_name, &id_options);
 			// Switch to non driverless-only mode and set hw ID to show the newly installed device
 			current_device_hardware_id = (dev != NULL)?safe_strdup(dev->hardware_id):NULL;
 			if ((r == WDI_SUCCESS) && (!cl_options.list_all) && (!pd_options.use_wcid_driver)) {
@@ -772,7 +845,41 @@ int install_driver(void)
 			PostMessage(hMainDialog, WM_DEVICECHANGE, 0, 0);
 		}
 	} else {
-		dsprintf("Could not extract files");
+		r = wdi_prepare_driver(dev, szFolderPath, inf_name, &pd_options);
+		if (r == WDI_SUCCESS) {
+			dsprintf("Successfully extracted driver files.");
+			// Perform the install if not extracting the files only
+			// Proceed with the installation unless the 'extract only' mode is enabled.
+			if (!extract_only) {
+				if ( (get_driver_type(dev) == DT_SYSTEM)
+				  && (MessageBoxA(hMainDialog, "You are about to modify a system driver.\n"
+						"Are you sure this is what you want?", "Warning - System Driver",
+						MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) == IDNO) ) {
+					r = WDI_ERROR_USER_CANCEL; goto out;
+				}
+				dsprintf("Installing driver. Please wait...");
+				id_options.hWnd = hMainDialog;
+				// fast and predictable exit
+				id_options.no_syslog_wait = no_syslog_wait_ini;
+				// short settle-poll (optional)
+				id_options.post_install_verify_timeout = post_install_verify_timeout_ini;
+				// Control OEM INF cleanup policy in the installer via environment
+				SetEnvironmentVariableA(
+					"WDI_CLEANUP_OEM_INF",
+					cleanup_oem_inf_ini ? "1" : "0"
+				);
+				r = wdi_install_driver(dev, szFolderPath, inf_name, &id_options);
+				// Switch to non driverless-only mode and set hw ID to show the newly installed device
+				current_device_hardware_id = (dev != NULL)?safe_strdup(dev->hardware_id):NULL;
+				if ((r == WDI_SUCCESS) && (!cl_options.list_all) && (!pd_options.use_wcid_driver)) {
+					toggle_driverless(FALSE);
+				}
+				// Force a refresh
+				PostMessage(hMainDialog, WM_DEVICECHANGE, 0, 0);
+			}
+		} else {
+			dsprintf("Could not extract files");
+		}
 	}
 out:
 	if ((pd_options.use_wcid_driver) && (dev != NULL)) {
@@ -844,7 +951,7 @@ void set_default_driver(void) {
 		|| (!show_libusbk_ini && (default_driver_type == WDI_LIBUSBK))
 		|| (!show_cdc_ini     && (default_driver_type == WDI_CDC))
 		|| (!show_user_ini    && (default_driver_type == WDI_USER))
-		|| !wdi_is_driver_supported(default_driver_type, NULL)) {
+		|| !is_driver_supported_gui(default_driver_type, NULL)) {
 		dprintf("'%s' driver is not available or hidden", driver_display_name[default_driver_type]);
 		for (i=0; i<WDI_NB_DRIVERS; i++) {
 			if (!show_winusb_ini  && (i == WDI_WINUSB))
@@ -857,7 +964,7 @@ void set_default_driver(void) {
 				continue;
 			if (!show_user_ini    && (i == WDI_USER))
 				continue;
-			if (wdi_is_driver_supported(i, NULL)) {
+			if (is_driver_supported_gui(i, NULL)) {
 				default_driver_type = i;
 				break;
 			}
@@ -887,7 +994,7 @@ void set_driver(void)
 	} else {
 		EnableMenuItem(hMenuOptions, IDM_CREATECAT, MF_ENABLED);
 		EnableMenuItem(hMenuOptions, IDM_SIGNCAT, pd_options.disable_cat?MF_GRAYED:MF_ENABLED);
-		if (wdi_is_driver_supported(pd_options.driver_type, &file_info)) {
+		if (is_driver_supported_gui(pd_options.driver_type, &file_info)) {
 			target_driver_version = file_info.dwFileVersionMS;
 			target_driver_version <<= 32;
 			target_driver_version += file_info.dwFileVersionLS;
@@ -926,7 +1033,7 @@ BOOL select_next_driver(int increment)
 			continue;
 		if (!show_user_ini    && (pd_options.driver_type == WDI_USER))
 			continue;
-		if (wdi_is_driver_supported(pd_options.driver_type, NULL))
+		if (is_driver_supported_gui(pd_options.driver_type, NULL))
 			break;
 	}
 	if (i == WDI_NB_DRIVERS) {
@@ -1823,6 +1930,24 @@ BOOL parse_ini(void) {
 	}
 	
 	
+	// External INF settings for WDI_USER (optional)
+	external_inf_enabled = FALSE;
+	external_inf_path[0] = '\0';
+	
+	tmp = NULL;
+	profile_get_string(profile, "external_inf", "path", NULL, NULL, &tmp);
+	if (tmp != NULL) {
+		safe_strcpy(external_inf_path, sizeof(external_inf_path), tmp);
+		safe_free(tmp);
+	}
+	
+	profile_get_boolean(profile, "external_inf", "enabled", NULL, FALSE, &external_inf_enabled);
+	
+	if (external_inf_enabled && (external_inf_path[0] != '\0')) {
+		dprintf("External INF enabled: path='%s', inf='%s'", external_inf_path, user_inf_name);
+	}
+	
+	
 	// Update settings
 	profile_get_boolean(profile, "updates", "disable", NULL, TRUE, &updates_disabled);
 	tmp = NULL;
@@ -2373,7 +2498,7 @@ INT_PTR CALLBACK main_callback(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 									continue;
 								if (!show_cdc_ini     && (i == WDI_CDC))
 									continue;
-								if (wdi_is_driver_supported(i, NULL))
+								if (is_driver_supported_gui(i, NULL))
 									break;
 							}
 							if (i < WDI_USER) {
