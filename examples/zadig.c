@@ -397,6 +397,11 @@ static BOOL select_external_inf_via_dialog(void)
 	
 	dprintf("External INF selected via dialog: path='%s', inf='%s'",
 		external_inf_path, user_inf_name);
+		
+	char status_msg[256];
+	_snprintf(status_msg, sizeof(status_msg),
+		"External INF: %s (%s)", user_inf_name, external_inf_path);
+	print_status(0, FALSE, status_msg);
 	
 	MessageBoxA(hMainDialog,
 		"An external INF has been selected.\n\n"
@@ -2085,8 +2090,14 @@ BOOL parse_ini(void) {
 	profile_get_boolean(profile, "external_inf", "enabled", NULL, FALSE, &external_inf_enabled);
 	
 	if (external_inf_enabled && (external_inf_path[0] != '\0')) {
+		char status_msg[256];
+	
 		dprintf("External INF configured: enabled=on, path='%s', inf='%s'",
 			external_inf_path, user_inf_name);
+	
+		_snprintf(status_msg, sizeof(status_msg),
+			"External INF: %s (%s)", user_inf_name, external_inf_path);
+		print_status(0, FALSE, status_msg);
 	} else if (external_inf_enabled && (external_inf_path[0] == '\0')) {
 		dprintf("External INF: enabled in ini but path is empty");
 	} else {
