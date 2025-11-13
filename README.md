@@ -8,6 +8,13 @@ The fork remains API-compatible with upstream while extending behavior where Win
 
 ---
 
+![VS2022](https://img.shields.io/badge/VS2022-passing-brightgreen.svg)
+![MinGW](https://img.shields.io/badge/MinGW-passing-brightgreen.svg)
+![Coverity](https://img.shields.io/badge/Coverity-passing-brightgreen.svg)
+![Downloads](https://img.shields.io/github/downloads/Igorbunow/libwdi-ext/total.svg?color=brightgreen)
+![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
+
 ## ⭐ Highlights
 
 ### ✔ External INF installation (legal-safe)
