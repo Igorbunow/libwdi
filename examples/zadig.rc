@@ -130,7 +130,7 @@ END
 MAIN_DIALOG DIALOGEX 0, 0, 382, 318
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_NOFAILCREATE | DS_CENTER | WS_MINIMIZEBOX | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
-CAPTION "Zadig"
+CAPTION "Zadig-ext"
 MENU IDR_MENU1
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
@@ -171,7 +171,7 @@ END
 
 IDD_ABOUTBOX DIALOGEX 0, 0, 287, 204
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Zadig"
+CAPTION "About Zadig-ext"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
     ICON            IDI_ZADIG,IDC_ABOUT_ICON,11,8,20,20
@@ -184,7 +184,7 @@ END
 
 IDD_NOTIFICATION DIALOGEX 0, 0, 263, 63
 STYLE DS_SETFONT | DS_FIXEDSYS | DS_NOFAILCREATE | DS_CENTER | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_THICKFRAME
-CAPTION "Zadig"
+CAPTION "Zadig-ext"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LTEXT           "",IDC_NOTIFICATION_LINE,0,0,263,39
@@ -198,7 +198,7 @@ END
 
 IDD_LICENSE DIALOGEX 0, 0, 335, 205
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Zadig License"
+CAPTION "Zadig-ext License"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "Close",IDOK,278,185,50,16
@@ -247,8 +247,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,9,792,0
- PRODUCTVERSION 2,9,792,0
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -263,15 +263,16 @@ BEGIN
     BEGIN
         BLOCK "000904b0"
         BEGIN
-            VALUE "CompanyName", "akeo.ie"
-            VALUE "FileDescription", "Zadig"
-            VALUE "FileVersion", "2.9.792"
-            VALUE "InternalName", "Zadig"
-            VALUE "LegalCopyright", "© 2010-2025 Pete Batard (GPL v3)"
+            VALUE "CompanyName", "akeo.ie / libwdi-ext fork by Igor Gorbunov"
+            VALUE "FileDescription", "Zadig-ext"
+            VALUE "FileVersion", "1.0.0"
+            VALUE "InternalName", "Zadig-ext"
+            VALUE "LegalCopyright", "© 2010-2025 Pete Batard (GPL v3). Fork modifications © 2025 Igor Gorbunov"
             VALUE "LegalTrademarks", "https://www.gnu.org/licenses/gpl-3.0.html"
-            VALUE "OriginalFilename", "zadig.exe"
-            VALUE "ProductName", "Zadig"
-            VALUE "ProductVersion", "2.9.792"
+            VALUE "OriginalFilename", "zadig-exe.exe"
+            VALUE "ProductName", "Zadig-ext"
+            VALUE "ProductVersion", "1.0.0"
+            VALUE "ForkAutor", "Igor Gorbunov <igor@gorbunov.tel>"
             VALUE "Comments", "https://zadig.akeo.ie"
         END
     END

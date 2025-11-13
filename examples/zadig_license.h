@@ -18,14 +18,15 @@
 
 const char* about_blurb_format =
 "{\\rtf1\\ansi\n"
-"{\\b\\fs20Zadig - The Automated Driver Installer}\\line\n"
+"{\\b\\fs20Zadig-ext - The Automated Driver Installer, fork Zadig}\\line\n"
 "\\fs18Version %d.%d (Build %d)\\line\n"
 "\\line\n"
-"Copyright © 2010-2025 Pete Batard / Akeo\\line\n"
+"Copyright © 2010-2025 Pete Batard / Akeo \\line\n"
+"Fork modifications © 2025 Igor Gorbunov\\line\n"
 APPLICATION_URL "\\line\n"
 "\\line\n"
-"Report bugs or request enhancements at:\\line\n"
-"https://github.com/pbatard/libwdi/issues\\line\n"
+"Report fork  bugs or request enhancements at:\\line\n"
+"https://github.com/Igorbunow/libwdi-ext/issues\\line\n"
 "\\line\n"
 "{\\b\\fs18Additional Copyrights:}}";
 
@@ -33,6 +34,7 @@ const char* additional_copyrights =
 "{\\rtf1\\ansi\n"
 "Windows Driver Installer library, libwdi:\\line\n"
 "Copyright © 2010-2025 by Pete Batard et al.\\line\n"
+"Fork modifications © 2025 Igor Gorbunov\\line\n"
 "GNU Lesser General Public License (LGPL) v3 or later\\line\n"
 "https://github.com/pbatard/libwdi/wiki\\line\n"
 "\\line\n"
