@@ -42,6 +42,7 @@
 #include <process.h>
 #include <shellapi.h>
 #include <commctrl.h>
+#include <commdlg.h>
 
 #include "libwdi.h"
 #include "msapi_utf8.h"
@@ -341,6 +342,51 @@ static int count_filter_tokens(const char* s)
 	}
 	return count;
 }
+
+// Helper: recursively search for a given INF filename under a root directory.
+// On success, stores the full path into out_full_path and returns TRUE.
+static BOOL find_inf_recursive(const char* root, const char* filename, char* out_full_path, size_t out_size)
+{
+	WIN32_FIND_DATAA ffd;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+	char search_path[MAX_PATH];
+	
+	if ((root == NULL) || (filename == NULL) || (out_full_path == NULL) || (out_size == 0)) {
+		return FALSE;
+	}
+	
+	_snprintf(search_path, sizeof(search_path), "%s\\*", root);
+	hFind = FindFirstFileA(search_path, &ffd);
+	if (hFind == INVALID_HANDLE_VALUE) {
+		return FALSE;
+	}
+	
+	do {
+		if ((strcmp(ffd.cFileName, ".") == 0) || (strcmp(ffd.cFileName, "..") == 0)) {
+			continue;
+		}
+	
+		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			char subdir[MAX_PATH];
+			_snprintf(subdir, sizeof(subdir), "%s\\%s", root, ffd.cFileName);
+			if (find_inf_recursive(subdir, filename, out_full_path, out_size)) {
+				FindClose(hFind);
+				return TRUE;
+			}
+		} else {
+			// Case-insensitive match on filename
+			if (_stricmp(ffd.cFileName, filename) == 0) {
+				_snprintf(out_full_path, out_size, "%s\\%s", root, ffd.cFileName);
+				FindClose(hFind);
+				return TRUE;
+			}
+		}
+	} while (FindNextFileA(hFind, &ffd));
+	
+	FindClose(hFind);
+	return FALSE;
+}
+
 
 static BOOL device_driver_matches(const struct wdi_device_info* dev)
 {
@@ -789,37 +835,122 @@ int install_driver(void)
 		external_inf_enabled && (external_inf_path[0] != '\0')) {
 		if (!extract_only) {
 		
-			// -----------------------------------------------------------
-			// ADD: Check that external INF file exists before installation
-			// -----------------------------------------------------------
 			char external_full_inf[MAX_PATH];
+			DWORD inf_attr;
+			
 			_snprintf(external_full_inf, sizeof(external_full_inf),
 					  "%s\\%s", external_inf_path, user_inf_name);
-		
-			DWORD inf_attr = GetFileAttributesA(external_full_inf);
+			
+			inf_attr = GetFileAttributesA(external_full_inf);
 			if (inf_attr == INVALID_FILE_ATTRIBUTES ||
 				(inf_attr & FILE_ATTRIBUTE_DIRECTORY)) {
-		
-				dprintf("External INF not found: '%s'", external_full_inf);
-				MessageBoxA(hMainDialog,
-					"The specified external INF file was not found.\n"
-					"Check the 'external_inf' section of the INI file.\n\n"
-					"Installation aborted.",
-					"External INF error",
-					MB_OK | MB_ICONERROR);
-		
-				r = WDI_ERROR_NOT_FOUND;
-				goto out;
+			
+				char found_path[MAX_PATH];
+			
+				// 1) Try to locate user_inf_name recursively under external_inf_path
+				if (find_inf_recursive(external_inf_path, user_inf_name, found_path, sizeof(found_path))) {
+					// found in a subdirectory: update external_inf_path accordingly
+					char* last_sep = strrchr(found_path, '\\');
+					char* last_sep2 = strrchr(found_path, '/');
+					char* last = (last_sep2 > last_sep) ? last_sep2 : last_sep;
+			
+					if (last != NULL) {
+						size_t dir_len = (size_t)(last - found_path);
+						if (dir_len >= sizeof(external_inf_path)) {
+							dir_len = sizeof(external_inf_path) - 1;
+						}
+						memcpy(external_inf_path, found_path, dir_len);
+						external_inf_path[dir_len] = '\0';
+						// user_inf_name остаётся тем же (имя файла)
+						_snprintf(external_full_inf, sizeof(external_full_inf),
+								  "%s\\%s", external_inf_path, user_inf_name);
+					}
+			
+					dprintf("External INF found in subdirectory: '%s'", external_full_inf);
+				} else {
+					// 2) Ask the user to select an INF file via standard Windows dialog
+					OPENFILENAMEA ofn;
+					char file_buf[MAX_PATH] = {0};
+					char initial_dir[MAX_PATH];
+			
+					ZeroMemory(&ofn, sizeof(ofn));
+					ofn.lStructSize = sizeof(ofn);
+					ofn.hwndOwner = hMainDialog;
+					ofn.lpstrFilter = "INF files (*.inf)\0*.inf\0All files (*.*)\0*.*\0\0";
+					ofn.lpstrFile = file_buf;
+					ofn.nMaxFile = sizeof(file_buf);
+			
+					if (external_inf_path[0] != '\0') {
+						safe_strcpy(initial_dir, sizeof(initial_dir), external_inf_path);
+					} else {
+						safe_strcpy(initial_dir, sizeof(initial_dir), app_dir);
+					}
+					ofn.lpstrInitialDir = initial_dir;
+					ofn.lpstrTitle = "Select external INF file";
+					ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+			
+					if (!GetOpenFileNameA(&ofn)) {
+						dprintf("External INF selection dialog was cancelled");
+						MessageBoxA(hMainDialog,
+							"External INF selection was cancelled.\n\n"
+							"Installation aborted.",
+							"External INF error",
+							MB_OK | MB_ICONERROR);
+						r = WDI_ERROR_NOT_FOUND;
+						goto out;
+					}
+			
+					// Split selected path into directory + filename
+					{
+						const char* full = file_buf;
+						const char* last_bslash = strrchr(full, '\\');
+						const char* last_fslash = strrchr(full, '/');
+						const char* last = (last_fslash > last_bslash) ? last_fslash : last_bslash;
+			
+						if (last != NULL) {
+							size_t dir_len = (size_t)(last - full);
+							if (dir_len >= sizeof(external_inf_path)) {
+								dir_len = sizeof(external_inf_path) - 1;
+							}
+							memcpy(external_inf_path, full, dir_len);
+							external_inf_path[dir_len] = '\0';
+							safe_strcpy(user_inf_name, sizeof(user_inf_name), last + 1);
+						} else {
+							// No path separator - unlikely, but handle it
+							safe_strcpy(external_inf_path, sizeof(external_inf_path), ".");
+							safe_strcpy(user_inf_name, sizeof(user_inf_name), full);
+						}
+			
+						_snprintf(external_full_inf, sizeof(external_full_inf),
+								  "%s\\%s", external_inf_path, user_inf_name);
+					}
+			
+					dprintf("External INF selected via dialog: path='%s', inf='%s'",
+							external_inf_path, user_inf_name);
+			
+					MessageBoxA(hMainDialog,
+						"An external INF has been selected.\n\n"
+						"Please update the [external_inf] section in your INI file\n"
+						"to persist this configuration on next run.",
+						"External INF selected",
+						MB_OK | MB_ICONINFORMATION);
+				}
+			
+				// Final existence check after recursive search / dialog
+				inf_attr = GetFileAttributesA(external_full_inf);
+				if (inf_attr == INVALID_FILE_ATTRIBUTES ||
+					(inf_attr & FILE_ATTRIBUTE_DIRECTORY)) {
+			
+					dprintf("External INF still not accessible: '%s'", external_full_inf);
+					MessageBoxA(hMainDialog,
+						"The external INF file could not be accessed.\n\n"
+						"Installation aborted.",
+						"External INF error",
+						MB_OK | MB_ICONERROR);
+					r = WDI_ERROR_NOT_FOUND;
+					goto out;
+				}
 			}
-			// -----------------------------------------------------------
-		
-			if ( (get_driver_type(dev) == DT_SYSTEM)
-			  && (MessageBoxA(hMainDialog, "You are about to modify a system driver.\n"
-					"Are you sure this is what you want?", "Warning - System Driver",
-					MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) == IDNO) ) {
-				r = WDI_ERROR_USER_CANCEL; goto out;
-			}
-		
 			dsprintf("Installing driver. Please wait...");
 			id_options.hWnd = hMainDialog;
 			// fast and predictable exit
@@ -831,10 +962,6 @@ int install_driver(void)
 				"WDI_CLEANUP_OEM_INF",
 				cleanup_oem_inf_ini ? "1" : "0"
 			);
-		
-			dprintf("Installing external USER driver: path='%s', inf='%s'",
-				external_inf_path, user_inf_name);
-		
 			r = wdi_install_driver(dev, external_inf_path, user_inf_name, &id_options);
 			// Switch to non driverless-only mode and set hw ID to show the newly installed device
 			current_device_hardware_id = (dev != NULL)?safe_strdup(dev->hardware_id):NULL;
