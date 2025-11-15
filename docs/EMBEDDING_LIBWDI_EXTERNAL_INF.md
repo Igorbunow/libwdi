@@ -109,7 +109,7 @@ environment variable to control **OEM INF cleanup** (see section 5):
 
 ```c
 // Enable removal of previous OEM INF files with matching OriginalInfName
-SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "1");
+id_options.disable_oem_inf_cleanup = 0;
 ```
 
 ### 2.2 WinUSB example
@@ -156,7 +156,7 @@ int install_winusb_driver(struct wdi_device_info* dev)
     id_options.post_install_verify_timeout = 5000;  // 5s verification timeout
 
     // Enable OEM INF cleanup in the helper installer process
-    SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "1");
+    id_options.disable_oem_inf_cleanup = 0;
 
     r = wdi_install_driver(dev, target_dir, inf_name, &id_options);
     return r;
@@ -229,7 +229,7 @@ int install_user_builtin_driver(struct wdi_device_info* dev)
     id_options.no_syslog_wait              = 1;
     id_options.post_install_verify_timeout = 5000;
 
-    SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "1");
+    id_options.disable_oem_inf_cleanup = 0;
 
     r = wdi_install_driver(dev, target_dir, inf_name, &id_options);
     return r;
@@ -287,7 +287,7 @@ int install_user_external_inf(struct wdi_device_info* dev,
     id_options.post_install_verify_timeout = 5000;
 
     // Enable OEM INF cleanup in the helper installer process
-    SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "1");
+    id_options.disable_oem_inf_cleanup = 0;
 
     // NOTE: no wdi_prepare_driver() here – we install directly from the vendor package
     r = wdi_install_driver(dev, driver_dir, inf_name, &id_options);
@@ -331,14 +331,14 @@ Control is done via an environment variable evaluated by the installer process:
 
 ```c
 // Enable aggressive OEM INF cleanup for the current installation
-SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "1");
+id_options.disable_oem_inf_cleanup = 0;
 ```
 
 If you want to leave the system store untouched (for debugging or testing),
 you can set it to `"0"`:
 
 ```c
-SetEnvironmentVariableA("WDI_CLEANUP_OEM_INF", "0");
+id_options.disable_oem_inf_cleanup = 1;
 ```
 
 For GUI usage (Zadig), this is typically wired to an ini option
@@ -399,7 +399,7 @@ To embed this enhanced fork of libwdi in your own application:
 
   * `id_options.no_syslog_wait`
   * `id_options.post_install_verify_timeout`
-  * `WDI_CLEANUP_OEM_INF` (environment variable)
+  * `id_options.disable_oem_inf_cleanup`
 
 Together, these options help keep installations fast, avoid system
 pollution from repeated installs, and integrate cleanly with official
